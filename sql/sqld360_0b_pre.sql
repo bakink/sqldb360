@@ -235,6 +235,9 @@ SELECT '--' skip_12r1 FROM v$instance WHERE version LIKE '12.1.%';
 DEF skip_18c = '';
 COL skip_18c NEW_V skip_18c;
 SELECT '--' skip_18c FROM v$instance WHERE version LIKE '18.%';
+DEF skip_19c = '';
+COL skip_19c NEW_V skip_19c;
+SELECT '--' skip_19c FROM v$instance WHERE version LIKE '19.%';
 --
 
 
@@ -506,7 +509,11 @@ SELECT CASE '&&sqld360_conf_incl_bubble.' WHEN 'N' THEN '--' END sqld360_skip_bu
 SELECT CASE '&&sqld360_conf_incl_scatt.'  WHEN 'N' THEN '--' END sqld360_skip_scatt  FROM DUAL;
 
 COL sqld360_skip_awrrpt NEW_V sqld360_skip_awrrpt;
-SELECT CASE '&&sqld360_conf_incl_awrrpt.' WHEN 'N' THEN '--' END sqld360_skip_awrrpt FROM DUAL;
+SELECT CASE WHEN '&&from_edb360.' = '--' 
+            THEN CASE WHEN '&&sqld360_conf_incl_awrrpt.'='N' THEN '--' END
+            ELSE CASE WHEN '&&sqld360_conf_incl_plot_awr.'='N' AND '&&sqld360_conf_incl_awrrpt.'='N' THEN '--' END
+        END sqld360_skip_awrrpt 
+FROM DUAL;
 
 COL sqld360_skip_ashrpt NEW_V sqld360_skip_ashrpt;
 SELECT CASE '&&sqld360_conf_incl_ashrpt.' WHEN 'N' THEN '--' END sqld360_skip_ashrpt FROM DUAL;
@@ -578,7 +585,15 @@ COL sqld360_awr_timescale_l NEW_V sqld360_awr_timescale_l
 -- Consider "ms" the exception, everything else goes to default
 SELECT CASE WHEN '&&sqld360_conf_awr_timescale.' = 'ms' THEN '1e3' ELSE '1e6'  END sqld360_awr_timescale_d, CASE WHEN '&&sqld360_conf_awr_timescale.' = 'ms' THEN 'ms'  ELSE 'secs' END sqld360_awr_timescale_l FROM DUAL;
 
-
+-- Variables and controls for 9e_one_line_chart_plus
+DEF skip_lchp = '--skip--';
+VAR AWRPointsIni VARCHAR2(100);
+VAR addAWRPoints VARCHAR2(32);
+BEGIN
+ :addAWRPoints:=(CASE '&&is_single_instance.' WHEN 'Y' THEN '' ELSE 'C' END)||
+  '&&inst1_present.&&inst2_present.&&inst3_present.&&inst4_present.&&inst5_present.&&inst6_present.&&inst7_present.&&inst8_present.';
+END;
+/
 
 -- setup
 DEF main_table = '';
@@ -839,5 +854,7 @@ HOS zip -jq &&sqld360_main_filename._&&sqld360_file_time. js/sql-formatter.js
 HOS zip -jq &&sqld360_main_filename._&&sqld360_file_time. js/googlecode.css
 HOS zip -jq &&sqld360_main_filename._&&sqld360_file_time. js/vs.css
 HOS zip -jq &&sqld360_main_filename._&&sqld360_file_time. js/highlight.pack.js
+HOS zip -jq &&sqld360_main_filename._&&sqld360_file_time. js/edb360_dlp.js 
+HOS zip -jq &&sqld360_main_filename._&&sqld360_file_time. js/edb360_awr_points.js
 
 --WHENEVER SQLERROR CONTINUE;

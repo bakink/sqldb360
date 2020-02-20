@@ -477,6 +477,12 @@ COL skip_18c_column NEW_V skip_18c_column;
 DEF skip_18c_script = '';
 COL skip_18c_script NEW_V skip_18c_script;
 SELECT ' -- skip 18c ' skip_18c_column, ' echo skip 18c ' skip_18c_script FROM &&v_object_prefix.instance WHERE version LIKE '18%';
+--
+DEF skip_19c_column = '';
+COL skip_19c_column NEW_V skip_19c_column;
+DEF skip_19c_script = '';
+COL skip_19c_script NEW_V skip_19c_script;
+SELECT ' -- skip 19c ' skip_19c_column, ' echo skip 19c ' skip_19c_script FROM &&v_object_prefix.instance WHERE version LIKE '19%';
 
 -- get average number of CPUs
 COL avg_cpu_count NEW_V avg_cpu_count FOR A6;
@@ -871,6 +877,16 @@ DEF series_13 = ''
 DEF series_14 = ''
 DEF series_15 = ''
 
+-- Variables and controls for 9e_one_line_chart_plus
+DEF skip_lchp = '--skip--';
+VAR AWRPointsIni VARCHAR2(100);
+VAR addAWRPoints VARCHAR2(32);
+BEGIN
+ :addAWRPoints:=(CASE '&&is_single_instance.' WHEN 'Y' THEN '' ELSE 'C' END)||
+  '&&inst1_present.&&inst2_present.&&inst3_present.&&inst4_present.&&inst5_present.&&inst6_present.&&inst7_present.&&inst8_present.';
+END;
+/
+
 -- get udump directory path
 COL edb360_udump_path NEW_V edb360_udump_path FOR A500;
 SELECT value||DECODE(INSTR(value, '/'), 0, '\', '/') edb360_udump_path FROM &&v_dollar.parameter2 WHERE name = 'user_dump_dest';
@@ -972,3 +988,5 @@ HOS zip -j &&edb360_zip_filename. js/sorttable.js >> &&edb360_log3..txt
 HOS zip -j &&edb360_zip_filename. js/edb360_img.jpg >> &&edb360_log3..txt
 HOS zip -j &&edb360_zip_filename. js/database.jpg >> &&edb360_log3..txt
 HOS zip -j &&edb360_zip_filename. js/edb360_favicon.ico >> &&edb360_log3..txt
+HOS zip -j &&edb360_zip_filename. js/edb360_dlp.js >> &&edb360_log3..txt
+
