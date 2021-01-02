@@ -162,7 +162,7 @@ SELECT /*+ &&sq_fact_hints. */ /* &&section_id..&&report_sequence. */
  GROUP BY
        snap_id
 )
-SELECT snap_id,
+SELECT x.snap_id,
        begin_time,
        end_time,
        background_time,
@@ -180,7 +180,7 @@ SELECT snap_id,
        plsql_compilation,
        java_execution,
        repeated_bind
-  FROM sys_time_model_denorm_4
+  FROM sys_time_model_denorm_4 x
  ORDER BY
        snap_id
 ]';

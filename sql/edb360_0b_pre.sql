@@ -1,6 +1,6 @@
-DEF edb360_vYYNN = 'v192';
-DEF edb360_vrsn = '&&edb360_vYYNN. (2019-03-23)';
-DEF edb360_copyright = ' (c) 2019';
+DEF edb360_vYYNN = 'v202';
+DEF edb360_vrsn = '&&edb360_vYYNN. (2020-11-30)';
+DEF edb360_copyright = ' (c) 2020';
 
 SET TERM OFF;
 -- watchdog
@@ -34,9 +34,13 @@ SELECT CASE WHEN '&&tool_repo_user.' IS NULL THEN '&&awr_object_prefix.' ELSE '&
   FROM DUAL
 /
 
--- get dbid
+@@moat369_fc_oracle_version
+-- get dbid --in a CDB or PDB this will be the DBID of the container
 COL edb360_dbid NEW_V edb360_dbid;
 SELECT TRIM(TO_CHAR(NVL(TO_NUMBER('&&edb360_config_dbid.'), dbid))) edb360_dbid FROM &&v_object_prefix.database;
+
+--dmk 31.1.2019 if in PDB work with DBID of PDB in v$database.CON_DBID if there are PDB specific snapshots
+&&skip_noncdb.SELECT TRIM(TO_CHAR(NVL(TO_NUMBER('&&edb360_config_dbid.'), v.con_dbid))) edb360_dbid FROM &&v_object_prefix.database v, dba_hist_snapshot s WHERE s.dbid = v.con_dbid AND rownum <= 1;
 
 -- snaps
 SELECT startup_time, dbid, instance_number, COUNT(*) snaps,
@@ -199,6 +203,7 @@ COL edb360_6k NEW_V edb360_6k;
 COL edb360_6l NEW_V edb360_6l;
 COL edb360_6m NEW_V edb360_6m;
 COL edb360_6n NEW_V edb360_6n;
+COL edb360_6o NEW_V edb360_6o;
 COL edb360_7a NEW_V edb360_7a;
 COL edb360_7b NEW_V edb360_7b;
 COL edb360_7c NEW_V edb360_7c;
@@ -258,6 +263,7 @@ SELECT CASE WHEN '6k' BETWEEN :edb360_sec_from AND :edb360_sec_to THEN 'edb360_6
 SELECT CASE WHEN '6l' BETWEEN :edb360_sec_from AND :edb360_sec_to THEN 'edb360_6l_' WHEN INSTR(:edb360_sections,',6l,') > 0 THEN 'edb360_6l_' ELSE ' echo skip ' END edb360_6l FROM DUAL;
 SELECT CASE WHEN '6m' BETWEEN :edb360_sec_from AND :edb360_sec_to THEN 'edb360_6m_' WHEN INSTR(:edb360_sections,',6m,') > 0 THEN 'edb360_6m_' ELSE ' echo skip ' END edb360_6m FROM DUAL;
 SELECT CASE WHEN '6n' BETWEEN :edb360_sec_from AND :edb360_sec_to THEN 'edb360_6n_' WHEN INSTR(:edb360_sections,',6n,') > 0 THEN 'edb360_6n_' ELSE ' echo skip ' END edb360_6n FROM DUAL;
+SELECT CASE WHEN '6o' BETWEEN :edb360_sec_from AND :edb360_sec_to THEN 'edb360_6o_' WHEN INSTR(:edb360_sections,',6o,') > 0 THEN 'edb360_6o_' ELSE ' echo skip ' END edb360_6o FROM DUAL;
 SELECT CASE WHEN '7a' BETWEEN :edb360_sec_from AND :edb360_sec_to THEN 'edb360_7a_' WHEN INSTR(:edb360_sections,',7a,') > 0 THEN 'edb360_7a_' ELSE ' echo skip ' END edb360_7a FROM DUAL;
 SELECT CASE WHEN '7b' BETWEEN :edb360_sec_from AND :edb360_sec_to THEN 'edb360_7b_' WHEN INSTR(:edb360_sections,',7b,') > 0 THEN 'edb360_7b_' ELSE ' echo skip ' END edb360_7b FROM DUAL;
 SELECT CASE WHEN '7c' BETWEEN :edb360_sec_from AND :edb360_sec_to THEN 'edb360_7c_' WHEN INSTR(:edb360_sections,',7c,') > 0 THEN 'edb360_7c_' ELSE ' echo skip ' END edb360_7c FROM DUAL;
@@ -365,6 +371,7 @@ HOS dcli -g ~/dbs_group -l $whoami mount >> &&edb360_log3..txt
 -- Exadata
 ALTER SESSION SET "_serial_direct_read" = ALWAYS;
 ALTER SESSION SET "_small_table_threshold" = 1001;
+ALTER SESSION SET "_px_cdb_view_enabled" = FALSE;
 -- nls
 ALTER SESSION SET NLS_NUMERIC_CHARACTERS = ".,";
 ALTER SESSION SET NLS_DATE_FORMAT = '&&edb360_date_format.';
@@ -434,25 +441,35 @@ COL row_num NEW_V row_num HEA '#' PRI;
 COL db_version NEW_V db_version;
 SELECT version db_version FROM &&v_object_prefix.instance;
 
--- skip
 
-DEF skip_10g_column = '';
-COL skip_10g_column NEW_V skip_10g_column;
-DEF skip_10g_script = '';
-COL skip_10g_script NEW_V skip_10g_script;
-SELECT ' -- skip 10g ' skip_10g_column, ' echo skip 10g ' skip_10g_script FROM &&v_object_prefix.instance WHERE version LIKE '10%';
+COLUMN cdb_awr_hist_prefix   NEW_V cdb_awr_hist_prefix
+COLUMN cdb_awr_object_prefix NEW_V cdb_awr_object_prefix
+COLUMN cdb_view_prefix       NEW_V cdb_view_prefix
+COLUMN cdb_object_prefix     NEW_V cdb_object_prefix
+SELECT CASE WHEN '&&is_cdb' = 'Y' THEN 'CDB_HIST_' ELSE '&&awr_hist_prefix'   END cdb_awr_hist_prefix
+,      CASE WHEN '&&is_cdb' = 'Y' THEN 'cdb_hist_' ELSE '&&awr_object_prefix' END cdb_awr_object_prefix
+,      CASE WHEN '&&is_cdb' = 'Y' THEN 'CDB_'      ELSE '&&dva_view_prefix'   END cdb_view_prefix
+,      CASE WHEN '&&is_cdb' = 'Y' THEN 'cdb_'      ELSE '&&dva_object_prefix' END cdb_object_prefix
+FROM DUAL;
+
+-- skip
+--DEF skip_10g_column = '';
+--COL skip_10g_column NEW_V skip_10g_column;
+--DEF skip_10g_script = '';
+--COL skip_10g_script NEW_V skip_10g_script;
+--SELECT ' -- skip 10g ' skip_10g_column, ' echo skip 10g ' skip_10g_script FROM &&v_object_prefix.instance WHERE version LIKE '10%';
 --
-DEF skip_11g_column = '';
-COL skip_11g_column NEW_V skip_11g_column;
-DEF skip_11g_script = '';
-COL skip_11g_script NEW_V skip_11g_script;
-SELECT ' -- skip 11g ' skip_11g_column, ' echo skip 11g ' skip_11g_script FROM &&v_object_prefix.instance WHERE version LIKE '11%';
+--DEF skip_11g_column = '';
+--COL skip_11g_column NEW_V skip_11g_column;
+--DEF skip_11g_script = '';
+--COL skip_11g_script NEW_V skip_11g_script;
+--SELECT ' -- skip 11g ' skip_11g_column, ' echo skip 11g ' skip_11g_script FROM &&v_object_prefix.instance WHERE version LIKE '11%';
 --
-DEF skip_11r1_column = '';
-COL skip_11r1_column NEW_V skip_11r1_column;
-DEF skip_11r1_script = '';
-COL skip_11r1_script NEW_V skip_11r1_script;
-SELECT ' -- skip 11gR1 ' skip_11r1_column, ' echo skip 11gR1 ' skip_11r1_script FROM &&v_object_prefix.instance WHERE version LIKE '11.1%';
+--DEF skip_11r1_column = '';
+--COL skip_11r1_column NEW_V skip_11r1_column;
+--DEF skip_11r1_script = '';
+--COL skip_11r1_script NEW_V skip_11r1_script;
+--SELECT ' -- skip 11gR1 ' skip_11r1_column, ' echo skip 11gR1 ' skip_11r1_script FROM &&v_object_prefix.instance WHERE version LIKE '11.1%';
 --
 DEF skip_non_repo_column = '';
 COL skip_non_repo_column NEW_V skip_non_repo_column;
@@ -460,29 +477,29 @@ DEF skip_non_repo_script = '';
 COL skip_non_repo_script NEW_V skip_non_repo_script;
 SELECT ' -- skip non-repository ' skip_non_repo_column, ' echo skip non-repository ' skip_non_repo_script FROM DUAL WHERE '&&tool_repo_user.' IS NOT NULL;
 --
-DEF skip_12c_column = '';
-COL skip_12c_column NEW_V skip_12c_column;
-DEF skip_12c_script = '';
-COL skip_12c_script NEW_V skip_12c_script;
-SELECT ' -- skip 12c ' skip_12c_column, ' echo skip 12c ' skip_12c_script FROM &&v_object_prefix.instance WHERE version LIKE '12%';
+--DEF skip_12c_column = '';
+--COL skip_12c_column NEW_V skip_12c_column;
+--DEF skip_12c_script = '';
+--COL skip_12c_script NEW_V skip_12c_script;
+--SELECT ' -- skip 12c ' skip_12c_column, ' echo skip 12c ' skip_12c_script FROM &&v_object_prefix.instance WHERE version LIKE '12%';
 --
-DEF skip_12r2_column = '';
-COL skip_12r2_column NEW_V skip_12r2_column;
-DEF skip_12r2_script = '';
-COL skip_12r2_script NEW_V skip_12r2_script;
-SELECT ' -- skip 12cR2 ' skip_12r2_column, ' echo skip 12cR2 ' skip_12r2_script FROM &&v_object_prefix.instance WHERE version LIKE '12.2%';
+--DEF skip_12r2_column = '';
+--COL skip_12r2_column NEW_V skip_12r2_column;
+--DEF skip_12r2_script = '';
+--COL skip_12r2_script NEW_V skip_12r2_script;
+--SELECT ' -- skip 12cR2 ' skip_12r2_column, ' echo skip 12cR2 ' skip_12r2_script FROM &&v_object_prefix.instance WHERE version LIKE '12.2%';
 --
-DEF skip_18c_column = '';
-COL skip_18c_column NEW_V skip_18c_column;
-DEF skip_18c_script = '';
-COL skip_18c_script NEW_V skip_18c_script;
-SELECT ' -- skip 18c ' skip_18c_column, ' echo skip 18c ' skip_18c_script FROM &&v_object_prefix.instance WHERE version LIKE '18%';
+--DEF skip_18c_column = '';
+--COL skip_18c_column NEW_V skip_18c_column;
+--DEF skip_18c_script = '';
+--COL skip_18c_script NEW_V skip_18c_script;
+--SELECT ' -- skip 18c ' skip_18c_column, ' echo skip 18c ' skip_18c_script FROM &&v_object_prefix.instance WHERE version LIKE '18%';
 --
-DEF skip_19c_column = '';
-COL skip_19c_column NEW_V skip_19c_column;
-DEF skip_19c_script = '';
-COL skip_19c_script NEW_V skip_19c_script;
-SELECT ' -- skip 19c ' skip_19c_column, ' echo skip 19c ' skip_19c_script FROM &&v_object_prefix.instance WHERE version LIKE '19%';
+--DEF skip_19c_column = '';
+--COL skip_19c_column NEW_V skip_19c_column;
+--DEF skip_19c_script = '';
+--COL skip_19c_script NEW_V skip_19c_script;
+--SELECT ' -- skip 19c ' skip_19c_column, ' echo skip 19c ' skip_19c_script FROM &&v_object_prefix.instance WHERE version LIKE '19%';
 
 -- get average number of CPUs
 COL avg_cpu_count NEW_V avg_cpu_count FOR A6;
@@ -678,8 +695,8 @@ DEF ash_hints2 = ' FULL(h.INT$&&awr_hist_prefix.ACT_SESS_HISTORY.sn) FULL(h.INT$
 DEF ash_hints3 = ' USE_HASH(h.INT$&&awr_hist_prefix.ACT_SESS_HISTORY.sn h.INT$&&awr_hist_prefix.ACT_SESS_HISTORY.ash h.INT$&&awr_hist_prefix.ACT_SESS_HISTORY.evt) ';
 DEF def_max_rows = '10000';
 DEF max_rows = '1e4';
-DEF exclusion_list = "('ANONYMOUS','APEX_030200','APEX_040000','APEX_040200','APEX_SSO','APPQOSSYS','CTXSYS','DBSNMP','DIP','EXFSYS','FLOWS_FILES','MDSYS','OLAPSYS','ORACLE_OCM','ORDDATA','ORDPLUGINS','ORDSYS','OUTLN','OWBSYS')";
-DEF exclusion_list2 = "('SI_INFORMTN_SCHEMA','SQLTXADMIN','SQLTXPLAIN','SYS','SYSMAN','SYSTEM','TRCANLZR','WMSYS','XDB','XS$NULL','PERFSTAT','STDBYPERF','MGDSYS','OJVMSYS')";
+DEF exclusion_list = "('ANONYMOUS','APEX_030200','APEX_040000','APEX_040200','APEX_180200','APEX_SSO','APPQOSSYS','CTXSYS','DBSNMP','DIP','EXFSYS','FLOWS_FILES','MDSYS','OLAPSYS','ORACLE_OCM','ORDDATA','ORDPLUGINS','ORDSYS','OUTLN','OWBSYS')";
+DEF exclusion_list2 = "('SI_INFORMTN_SCHEMA','SQLTXADMIN','SQLTXPLAIN','SYS','SYSMAN','SYSTEM','TRCANLZR','WMSYS','XDB','XS$NULL','PERFSTAT','STDBYPERF','MGDSYS','OJVMSYS','GSMADMIN_INTERNAL')";
 DEF skip_html = '';
 DEF skip_text = '';
 DEF skip_csv = '';
@@ -947,6 +964,7 @@ COL name CLE;
 COL value CLE;
 COL display_value CLE;
 COL update_comment CLE;
+COL cpu_load_threshold CLEAR
 SHOW PARAMETERS;
 SELECT 'Tool Execution Hours so far: '||ROUND((DBMS_UTILITY.GET_TIME - :edb360_main_time0) / 100 / 3600, 3) tool_exec_hours FROM DUAL
 /

@@ -7,6 +7,43 @@ PRO <h2>&&section_id.. &&section_name.</h2>
 PRO <ol start="&&report_sequence.">
 SPO OFF;
 
+DEF main_table = '&&awr_hist_prefix.SYS_TIME_MODEL';
+DEF chartype = 'LineChart';
+DEF stacked = '';
+DEF vaxis = 'Average Active Sessions (AAS)';
+--DEF vbaseline = 'baseline:&&avg_cpu_count.,';
+DEF vbaseline = '';
+DEF tit_01 = 'background elapsed time';
+DEF tit_02 = 'background cpu time';
+DEF tit_03 = 'RMAN cpu time (backup/restore)';
+DEF tit_04 = 'DB time';
+DEF tit_05 = 'DB CPU';
+DEF tit_06 = 'connection management call elapsed time';
+DEF tit_07 = 'sequence load elapsed time';
+DEF tit_08 = 'sql execute elapsed time';
+DEF tit_09 = 'parse time elapsed';
+DEF tit_10 = 'hard parse elapsed time';
+DEF tit_11 = 'PL/SQL execution elapsed time';
+DEF tit_12 = 'inbound PL/SQL rpc elapsed time';
+DEF tit_13 = 'PL/SQL compilation elapsed time';
+DEF tit_14 = 'Java execution elapsed time';
+DEF tit_15 = 'repeated bind elapsed time';
+COL background_time FOR 999990.0;
+COL background_cpu FOR 999990.0;
+COL rman_cpu FOR 999990.0;
+COL db_time FOR 999990.0;
+COL db_cpu FOR 999990.0;
+COL connection_management_call FOR 999990.0;
+COL sequence_load FOR 999990.0;
+COL sql_execute FOR 999990.0;
+COL parse_time FOR 999990.0;
+COL hard_parse FOR 999990.0;
+COL plsql_execution FOR 999990.0;
+COL inbound_plsql_rpc FOR 999990.0;
+COL plsql_compilation FOR 999990.0;
+COL java_execution FOR 999990.0;
+COL repeated_bind FOR 999990.0;
+
 @&&chart_setup_driver.;
 
 BEGIN

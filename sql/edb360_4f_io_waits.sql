@@ -66,6 +66,14 @@ DEF vbaseline = '';
 DEF chartype = 'AreaChart';
 DEF stacked = 'isStacked: true,';
 
+COLUMN min_wait_time_milli NEW_VALUE min_wait_time_milli
+COLUMN max_wait_time_milli NEW_VALUE max_wait_time_milli
+SELECT MIN(wait_time_milli) min_wait_time_milli
+     , MAX(wait_time_milli)*2 max_wait_time_milli
+  FROM &&awr_object_prefix.event_histogram
+ WHERE dbid = &&edb360_dbid.
+   AND wait_time_milli < 1e9;
+
 BEGIN
   :sql_text_backup := q'[
 WITH 
@@ -74,9 +82,9 @@ SELECT /*+ &&sq_fact_hints. */ /* &&section_id..&&report_sequence. */
        snap_id,
        dbid,
        instance_number,
-       wait_count - LAG(wait_count) OVER (PARTITION BY dbid, instance_number, event_id, wait_class_id, wait_time_milli ORDER BY snap_id) wait_count_this_snap,
-       (wait_count - LAG(wait_count) OVER (PARTITION BY dbid, instance_number, event_id, wait_class_id, wait_time_milli ORDER BY snap_id)) * /* wait_count_this_snap */ 
-       (wait_time_milli - LAG(wait_time_milli) OVER (PARTITION BY snap_id, dbid, instance_number, event_id, wait_class_id  ORDER BY wait_time_milli)) / 2 /* average wait_time_milli */
+       wait_count - LAG(wait_count) OVER (PARTITION BY dbid, instance_number, event_id, wait_time_milli ORDER BY snap_id) wait_count_this_snap,
+       (wait_count - LAG(wait_count) OVER (PARTITION BY dbid, instance_number, event_id, wait_time_milli ORDER BY snap_id)) * /* wait_count_this_snap */ 
+       ((CASE WHEN wait_time_milli > &&min_wait_time_milli. THEN 0.75 ELSE 0.5 END)*LEAST(wait_time_milli,&&max_wait_time_milli.)) /* average wait_time_milli */
        wait_time_milli_total
   FROM &&awr_object_prefix.event_histogram
  WHERE snap_id BETWEEN &&minimum_snap_id. AND &&maximum_snap_id.
@@ -209,21 +217,21 @@ EXEC :sql_text := REPLACE(:sql_text_backup, '@filter_predicate@', 'wait_class = 
 @@&&skip_all.&&skip_diagnostics.edb360_9a_pre_one.sql
 
 DEF main_table = '&&awr_hist_prefix.EVENT_HISTOGRAM';
-COL less_1_perc FOR 999990.0;
-COL less_2_perc FOR 999990.0;
-COL less_4_perc FOR 999990.0;
-COL less_8_perc FOR 999990.0;
-COL less_16_perc FOR 999990.0;
-COL less_32_perc FOR 999990.0;
-COL less_64_perc FOR 999990.0;
-COL less_128_perc FOR 999990.0;
-COL less_256_perc FOR 999990.0;
-COL less_512_perc FOR 999990.0;
-COL less_1024_perc FOR 999990.0;
-COL less_2048_perc FOR 999990.0;
-COL less_4096_perc FOR 999990.0;
-COL less_8192_perc FOR 999990.0;
-COL more_8192_perc FOR 999990.0;
+COL less_1_perc FOR 999990.0 HEADING'% <||1ms';
+COL less_2_perc FOR 999990.0 HEADING'% <||2ms';
+COL less_4_perc FOR 999990.0 HEADING'% <||4ms';
+COL less_8_perc FOR 999990.0 HEADING'% <||8ms';
+COL less_16_perc FOR 999990.0 HEADING'% <||16ms';
+COL less_32_perc FOR 999990.0 HEADING'% <||32ms';
+COL less_64_perc FOR 999990.0 HEADING'% <||64ms';
+COL less_128_perc FOR 999990.0 HEADING'% <||128ms';
+COL less_256_perc FOR 999990.0 HEADING'% <||256ms';
+COL less_512_perc FOR 999990.0 HEADING'% <||512ms';
+COL less_1024_perc FOR 999990.0 HEADING'% <||1.024s';
+COL less_2048_perc FOR 999990.0 HEADING'% <||2.048s';
+COL less_4096_perc FOR 999990.0 HEADING'% <||4.096s';
+COL less_8192_perc FOR 999990.0 HEADING'% <||8.192s';
+COL more_8192_perc FOR 999990.0 HEADING'% >=||8.192s';
 
 DEF tit_01 = '% < 1ms';
 DEF tit_02 = '% < 2ms';
@@ -250,7 +258,7 @@ SELECT /*+ &&sq_fact_hints. */ /* &&section_id..&&report_sequence. */
        dbid,
        instance_number,
        wait_time_milli,
-       wait_count - LAG(wait_count) OVER (PARTITION BY dbid, instance_number, event_id, wait_class_id, wait_time_milli ORDER BY snap_id) wait_count_this_snap
+       wait_count - LAG(wait_count) OVER (PARTITION BY dbid, instance_number, event_id, wait_time_milli ORDER BY snap_id) wait_count_this_snap
   FROM &&awr_object_prefix.event_histogram
  WHERE snap_id BETWEEN &&minimum_snap_id. AND &&maximum_snap_id.
    AND dbid = &&edb360_dbid.
@@ -279,7 +287,7 @@ SELECT /*+ &&sq_fact_hints. */ /* &&section_id..&&report_sequence. */
        h.wait_time_milli,
        h.wait_count_this_snap
   FROM history           h,
-       &&awr_object_prefix.snapshot s
+       &&cdb_awr_object_prefix.snapshot s
  WHERE s.snap_id         = h.snap_id
    AND s.dbid            = h.dbid
    AND s.instance_number = h.instance_number

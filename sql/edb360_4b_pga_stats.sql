@@ -28,6 +28,22 @@ DEF tit_12 = 'total PGA used for manual workareas';
 DEF tit_13 = 'total freeable PGA memory';
 DEF tit_14 = '';
 DEF tit_15 = '';
+
+COL pga_mem_freed_to_os   HEADING 'PGA memory|freed back|to OS'
+COL aggr_pga_auto_target  HEADING 'Aggregate|PGA Auto|Target'
+COL aggr_pga_target_param HEADING 'Aggregate|PGA Target|Parameter'
+COL bytes_processed       HEADING 'TBytes|Processed'
+COL extra_bytes_rw        HEADING 'Extra TBytes|read/written'
+COL global_memory_bound   HEADING 'Global|Memory|Bound'
+COL max_pga_allocated     HEADING 'Maximum|PGA|allocated'
+COL max_pga_used_aut_wa   HEADING 'Maximum|PGA|Used for Auto|workareas'
+COL max_pga_used_man_wa   HEADING 'Maximum|PGA|Used for Manual|workareas'
+COL tot_pga_allocated     HEADING 'Total PGA|Allocated'
+COL tot_pga_inuse         HEADING 'Total PGA|In Use'
+COL tot_pga_used_aut_wa   HEADING 'Total PGA|Used for Auto|Workareas'
+COL tot_pga_used_man_wa   HEADING 'Total PGA|Used for Manual|workareas'
+COL tot_freeable_pga_mem  HEADING 'Total Freeable|PGA Memory'
+
 BEGIN
   :sql_text_backup := q'[
 WITH 
@@ -224,3 +240,19 @@ EXEC :sql_text := REPLACE(:sql_text_backup, '@instance_number@', '8');
 SPO &&edb360_main_report..html APP;
 PRO </ol>
 SPO OFF;
+
+
+COL pga_mem_freed_to_os   CLEAR
+COL aggr_pga_auto_target  CLEAR
+COL aggr_pga_target_param CLEAR
+COL bytes_processed       CLEAR
+COL extra_bytes_rw        CLEAR
+COL global_memory_bound   CLEAR
+COL max_pga_allocated     CLEAR
+COL max_pga_used_aut_wa   CLEAR
+COL max_pga_used_man_wa   CLEAR
+COL tot_pga_allocated     CLEAR
+COL tot_pga_inuse         CLEAR
+COL tot_pga_used_aut_wa   CLEAR
+COL tot_pga_used_man_wa   CLEAR
+COL tot_freeable_pga_mem  CLEAR

@@ -7,6 +7,14 @@ PRO <h2>&&section_id.. &&section_name.</h2>
 PRO <ol start="&&report_sequence.">
 SPO OFF;
 
+COLUMN min_wait_time_milli NEW_VALUE min_wait_time_milli
+COLUMN max_wait_time_milli NEW_VALUE max_wait_time_milli
+SELECT MIN(wait_time_milli) min_wait_time_milli
+     , MAX(wait_time_milli)*2 max_wait_time_milli
+  FROM &&awr_object_prefix.event_histogram
+ WHERE dbid = &&edb360_dbid.
+   AND wait_time_milli < 1e9;
+
 DEF title = 'Top 24 Wait Events';
 DEF main_table = '&&awr_hist_prefix.EVENT_HISTOGRAM';
 BEGIN
@@ -16,8 +24,8 @@ details AS (
 SELECT /*+ &&sq_fact_hints. */ /* &&section_id..&&report_sequence. */
        wait_class,
        event_name,
-       (wait_count - LAG(wait_count) OVER (PARTITION BY dbid, instance_number, event_id, wait_class_id, wait_time_milli ORDER BY snap_id)) * /* wait_count_this_snap */
-       (wait_time_milli - wait_time_milli/4)  /* middle of the bucket */ 
+       (wait_count - LAG(wait_count) OVER (PARTITION BY dbid, instance_number, event_id, wait_time_milli ORDER BY snap_id)) * /* wait_count_this_snap */
+       ((CASE WHEN wait_time_milli > &&min_wait_time_milli. THEN 0.75 ELSE 0.5 END)*LEAST(wait_time_milli,&&max_wait_time_milli.)) /* average wait_time_milli */
        wait_time_milli_total
   FROM &&awr_object_prefix.event_histogram
  WHERE snap_id BETWEEN &&minimum_snap_id. AND &&maximum_snap_id.
@@ -132,8 +140,8 @@ details AS (
 SELECT /*+ &&sq_fact_hints. */ /* &&section_id..&&report_sequence. */
        wait_class,
        event_name,
-       (wait_count - LAG(wait_count) OVER (PARTITION BY dbid, instance_number, event_id, wait_class_id, wait_time_milli ORDER BY snap_id)) * /* wait_count_this_snap */
-       (wait_time_milli - wait_time_milli/4)  /* middle of the bucket */ 
+       (wait_count - LAG(wait_count) OVER (PARTITION BY dbid, instance_number, event_id, wait_time_milli ORDER BY snap_id)) * /* wait_count_this_snap */
+       ((CASE WHEN wait_time_milli > &&min_wait_time_milli. THEN 0.75 ELSE 0.5 END)*LEAST(wait_time_milli,&&max_wait_time_milli.)) /* average wait_time_milli */
        wait_time_milli_total
    FROM &&awr_object_prefix.event_histogram
  WHERE snap_id BETWEEN &&minimum_snap_id. AND &&maximum_snap_id.
@@ -246,7 +254,23 @@ DEF tit_11 = '< 1.024s';
 DEF tit_12 = '< 2.048s';
 DEF tit_13 = '< 4.096s';
 DEF tit_14 = '< 8.192s';
-DEF tit_15 = '> 8.192s';
+DEF tit_15 = '>= 8.192s';
+
+COL less_1_ms HEADING '<|1ms'
+COL less_2_ms HEADING '<|2ms'
+COL less_4_ms HEADING '<|4ms'
+COL less_8_ms HEADING '<|8ms'
+COL less_16_ms HEADING '<|16ms'
+COL less_32_ms HEADING '<|32ms'
+COL less_64_ms HEADING '<|64ms'
+COL less_128_ms HEADING '<|128ms'
+COL less_256_ms HEADING '<|256ms'
+COL less_512_ms HEADING '<|512ms'
+COL less_1024_ms HEADING '<|1.024s'
+COL less_2048_ms HEADING '<|2.048s'
+COL less_4096_ms HEADING '<|4.192s'
+COL less_8192_ms HEADING '<|8.192s'
+COL more_8192_ms HEADING '>=|8.192s'
 
 BEGIN
   :sql_text_backup := q'[
@@ -257,8 +281,8 @@ SELECT /*+ &&sq_fact_hints. */ /* &&section_id..&&report_sequence. */
        dbid,
        instance_number,
        wait_time_milli,
-       (wait_count - LAG(wait_count) OVER (PARTITION BY dbid, instance_number, event_id, wait_class_id, wait_time_milli ORDER BY snap_id)) * /* wait_count_this_snap */
-       (wait_time_milli - wait_time_milli/4)  /* middle of the bucket */ 
+       (wait_count - LAG(wait_count) OVER (PARTITION BY dbid, instance_number, event_id, wait_time_milli ORDER BY snap_id)) * /* wait_count_this_snap */
+       ((CASE WHEN wait_time_milli > &&min_wait_time_milli. THEN 0.75 ELSE 0.5 END)*LEAST(wait_time_milli,&&max_wait_time_milli.)) /* average wait_time_milli */
        wait_time_milli_total
   FROM &&awr_object_prefix.event_histogram
  WHERE snap_id BETWEEN &&minimum_snap_id. AND &&maximum_snap_id.

@@ -45,18 +45,24 @@ BEGIN
   SELECT dbid INTO :dbid FROM v$database;
 END;
 /
+-- settings to allow planx to run standalone
+SET LIN 32767 PAGES 0 LONG 32767000 LONGC 32767 TRIMS ON AUTOT OFF;
+-- display adaptive plan
+COL format_adaptive NEW_V format_adaptive
+SELECT '+ADAPTIVE' format_adaptive FROM v$instance WHERE version >= '12.';
+
 -- is_10g
 DEF is_10g = '';
 COL is_10g NEW_V is_10g NOPRI;
 SELECT '--' is_10g FROM v$instance WHERE version LIKE '10%';
+-- is_11g
+DEF is_11g = '';
+COL is_11g NEW_V is_11g NOPRI;
+SELECT '--' is_11 FROM v$instance WHERE version LIKE '11%';
 -- is_11r1
 DEF is_11r1 = '';
 COL is_11r1 NEW_V is_11r1 NOPRI;
 SELECT '--' is_11r1 FROM v$instance WHERE version LIKE '11.1%';
--- is_11r2
-DEF is_11r2 = '';
-COL is_11r2 NEW_V is_11r2 NOPRI;
-SELECT '--' is_11r2 FROM v$instance WHERE version LIKE '11.2%';
 -- get current time
 COL current_time NEW_V current_time FOR A15;
 SELECT 'current_time: ' x, TO_CHAR(SYSDATE, 'YYYYMMDD_HH24MISS') current_time FROM DUAL;
@@ -573,7 +579,7 @@ SELECT /*+ ORDERED USE_NL(t) * /
        'inst_id = '||v.inst_id||' AND sql_id = '''||v.sql_id||''' AND child_number = '||v.child_number)) t
 /
 */
-SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR(:sql_id, NULL, 'ADVANCED ALLSTATS LAST'));
+SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR(:sql_id, NULL, 'ADVANCED ALLSTATS LAST &&format_adaptive'));
 
 PRO
 PRO DBA_HIST_SQLSTAT DELTA (ordered by snap_id DESC, instance_number and plan_hash_value)
@@ -716,7 +722,7 @@ SELECT /*+ MATERIALIZE */
 SELECT /*+ ORDERED USE_NL(t) */ 
        TO_CHAR(v.timestamp, 'YYYY-MM-DD"T"HH24:MI:SS') plan_timestamp_ff,
        t.plan_table_output
-  FROM v, TABLE(DBMS_XPLAN.DISPLAY_AWR(v.sql_id, v.plan_hash_value, v.dbid, 'ADVANCED')) t
+  FROM v, TABLE(DBMS_XPLAN.DISPLAY_AWR(v.sql_id, v.plan_hash_value, v.dbid, 'ADVANCED &&format_adaptive')) t
 /  
 CLEAR BREAK;
 
@@ -1088,7 +1094,7 @@ PRO
 PRO SQL Plan Baselines
 PRO ~~~~~~~~~~~~~~~~~~
 SPO planx_&&sql_id._&&current_time..txt APP;
-SELECT created, plan_name, origin, enabled, accepted, fixed, reproduced, &&is_10g.&&is_11r1.adaptive,
+SELECT created, plan_name, origin, enabled, accepted, fixed, reproduced, &&is_10g.&&is_11g.adaptive,
        last_executed, last_modified, description
 FROM dba_sql_plan_baselines WHERE signature = :signature
 ORDER BY created, plan_name
@@ -1134,6 +1140,7 @@ BEGIN
   	       AND h.sql_id = :sql_id
   	       AND h.current_obj# >= 0
   	       AND o.object_id(+) = h.current_obj#
+           AND h.wait_class in ('Application', 'Cluster', 'Concurrency', 'User I/O')
   	     UNION
   	    SELECT /*+ 
                FULL(h.INT$DBA_HIST_ACT_SESS_HISTORY.sn) 
@@ -1154,6 +1161,7 @@ BEGIN
   	       AND h.sql_id = :sql_id
   	       AND h.current_obj# >= 0
   	       AND o.object_id(+) = h.current_obj#
+           AND h.wait_class in ('Application', 'Cluster', 'Concurrency', 'User I/O')
   	    )
   	    SELECT 'TABLE', t.owner, t.table_name
   	      FROM dba_tab_statistics t, -- include fixed objects
